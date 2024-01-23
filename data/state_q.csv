@@ -1,0 +1,21 @@
+q_id,question,reversed
+calm,I feel calm,TRUE
+secure,I feel secure,TRUE
+tense,I feel tense,FALSE
+strained,I feel strained,FALSE
+ease,I feel at ease,TRUE
+upset,I feel upset,FALSE
+misfortunes,I am presently worrying over possible misfortunes,FALSE
+satisified,I feel satisfied,TRUE
+frightened,I feel frightened,FALSE
+comfortable,I feel uncomfortable,FALSE
+confident,I feel self confident,TRUE
+nervous,I feel nervous,FALSE
+jittery,I feel jittery,FALSE
+indecisive,I feel indecisive,FALSE
+relaxed,I am relaxed,TRUE
+content,I feel content,TRUE
+worried,I am worried,FALSE
+confused,I feel confused,FALSE
+steady,I feel steady,TRUE
+pleasant,I feel pleasant,TRUE

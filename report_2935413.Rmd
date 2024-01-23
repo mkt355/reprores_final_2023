@@ -1,0 +1,305 @@
+---
+title: "Final Report"
+author: "Student ID 2935413"
+date: "2023-12-13"
+bibliography: refs.bib
+csl: apa.csl
+nocite: '@*'
+output: 
+  bookdown::html_document2:
+    toc: true
+    toc_float :
+      collapsed: false
+    number_sections: false
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+library(tidyverse) # for data wrangling
+library(kableExtra) # for building tables
+library(faux) # for correlation simulation
+
+# ggplot theme
+theme_set(theme_minimal(base_size = 15))
+```
+
+# Descriptives 
+
+```{r data-load}
+# reading the raw data from csv files
+sss_orig <- read_csv("data/sss_orig.csv", 
+                     show_col_types = FALSE, 
+                     na = c("NULL"))
+state_orig <- read_csv("data/state_orig.csv", show_col_types = FALSE)
+state_q <- read_csv("data/state_q.csv", show_col_types = FALSE)
+subjects <- read_csv("data/subjects.csv", show_col_types = FALSE)
+trait_orig <- read_csv("data/trait_orig.csv", show_col_types = FALSE)
+trait_q <- read_csv("data/trait_q.csv", show_col_types = FALSE)
+```
+
+```{r data-processing-state}
+# converting state_orig to long format
+state_long <- state_orig |>
+  pivot_longer(cols = "calm":"pleasant", 
+               names_to = "q_id",
+               values_to = "response") 
+
+# joining the state_long with the state_q dataset
+merged_state <- left_join(state_long, state_q, by = "q_id")
+  
+# score for state anxiety
+response_score <- c("Not at all" = 1,
+                    "Somewhat" = 2,
+                    "Moderately so" = 3, 
+                    "Very much so" = 4)
+
+state_scores <- merged_state |> 
+  mutate(unreversed_score = response_score[response], 
+         score = ifelse(reversed == TRUE, 
+                        5 - unreversed_score, 
+                        unreversed_score)) |>
+  group_by(user_id) |>
+  summarize(state_score = sum(score)) |>
+  distinct(user_id, state_score)
+```
+
+```{r data-processing-trait}
+# converting trait_orig to long format
+trait_long <- trait_orig |>
+  pivot_longer(cols = "pleasant" : "turmoil", 
+               names_to = "q_id", 
+               values_to = "response")
+
+# joining the trait_long with the trait_q dataset
+merged_trait <- left_join(trait_long, trait_q, by = "q_id")
+
+# score for trait anxiety
+trait_scores <- merged_trait |> 
+  mutate(unreversed_score = response_score[response], 
+         score = ifelse(reversed == TRUE, 
+                        5 - unreversed_score, 
+                        unreversed_score)) |>
+  group_by(user_id) |>
+  summarize(trait_score = sum(score)) |>
+  distinct(user_id, trait_score)
+```
+
+``` {r data-processing-sss}
+# converting to long format
+sss_long <- sss_orig |>
+  pivot_longer(cols = "sss-1":"sss-14", 
+               names_to = "question",
+               values_to = "score")
+
+# score for sensation seeking
+sensation_scores <- sss_long |> 
+  mutate(sen_score = ifelse(score == TRUE, 1, 0))|>
+  group_by(user_id) |>
+  summarize(sensation_score = sum(sen_score)) |>
+  distinct(user_id, sensation_score)
+```
+
+## Demographics
+
+```{r join-scores}
+# participants who started all three questionnaires
+final_subjects <- inner_join(state_scores, trait_scores, by = "user_id") |> 
+  inner_join(sensation_scores, by = "user_id") |>
+  inner_join(subjects, by = "user_id") 
+
+# calculate demographics values
+tot_subj <- nrow(subjects)
+sss_subj <- nrow(sss_orig)
+state_subj <- nrow(state_orig)
+trait_subj <- nrow(trait_orig)
+included_subj <- nrow(final_subjects)
+completed_subj <- final_subjects |> 
+  complete.cases()|>
+  sum()
+```
+
+`r tot_subj` people participated in total, with `r sss_subj` starting the sensation seeking questionnaire, `r state_subj` starting the state anxiety questionnaire, and `r trait_subj` starting the trait anxiety questionnaire. After excluding participants who did not start all 3 questionnaires, there were `r included_subj` people left for analyses. `r completed_subj` of these participants completed all 3 questionnaires.
+
+```{r summary-table}
+# making a data table with summary statistics for each group
+summary_data <- final_subjects |>
+  group_by(group, condition)|>
+  summarize(n_state = sum(!is.na(state_score)),
+            mean_state = mean(state_score, na.rm = TRUE),
+            sd_state = sd(state_score, na.rm = TRUE),
+            n_trait = sum(!is.na(trait_score)),
+            mean_trait = mean(trait_score, na.rm = TRUE),
+            sd_trait = sd(trait_score, na.rm = TRUE),
+            n_sensation = sum(!is.na(sensation_score)),
+            mean_sensation = mean(sensation_score, na.rm = TRUE),
+            sd_sensation = sd(sensation_score, na.rm = TRUE)) 
+
+# creating a summary statistics table
+summary_table <- summary_data |>
+  kable(booktabs = TRUE, digits = 2, 
+        caption = "Summary statistics of state anxiety, trait anxiety, and sensation seeking scores for each group.",
+        col.names = c("Group", "Condition", 
+                      "N", "Mean", "S.D",
+                      "N", "Mean", "S.D",
+                      "N", "Mean", "S.D")) |>
+  kable_styling(full_width = FALSE) |>
+  add_header_above(c(" " = 1, " " = 1,
+                     "State Anxiety" = 3,
+                     "Trait Anxiety" = 3,
+                     "Sensation Seeking" = 3))
+
+summary_table
+```
+## Score Distributions
+
+```{r state-dist, fig.cap = "Distribution of state anxiety score for each group/ condition combination."}
+# concatenating group and condition to make graphs
+processed_data <- final_subjects |>
+  mutate(grp_condn = paste(group, condition, sep = "/"))
+
+# violin plot for state score
+state_plot <- processed_data |>
+  ggplot(aes(grp_condn, state_score, fill = grp_condn)) +
+  geom_violin(draw_quantiles = 0.5, 
+              trim = FALSE, 
+              scale = "width", 
+              width = 0.8) +
+  scale_fill_manual(values = c("darkorchid", "darkorange",
+                               "dodgerblue", "firebrick")) +
+  labs(x = "Group/Condition Combinations", 
+       y = "State Anxiety Score") +
+  guides(fill = "none") +
+  coord_cartesian(ylim = c(0, 80))
+
+state_plot
+```
+
+```{r trait-dist, fig.cap = "Distribution of trait anxiety score for each group/ condition combination."}
+# violin plot for trait score
+trait_plot <- processed_data |>
+  ggplot(aes(grp_condn, trait_score, fill = grp_condn)) +
+  geom_violin(draw_quantiles = 0.5, 
+              trim = FALSE, 
+              scale = "width", 
+              width = 0.8) +
+  scale_fill_manual(values = c("darkorchid", "darkorange",
+                               "dodgerblue", "firebrick")) +
+  labs(x = "Group/Condition Combinations", 
+       y = "Trait Anxiety Score") +
+  guides(fill = "none") +
+  coord_cartesian(ylim = c(0, 80))
+
+trait_plot
+```
+
+```{r sss-dist, fig.cap = "Distribution of sensation seeking score for each group/ condition combination."}
+# violin plot for sensation seeking score
+sss_plot <- processed_data |>
+  ggplot(aes(grp_condn, sensation_score, fill = grp_condn)) +
+  geom_violin(draw_quantiles = 0.5, 
+              trim = FALSE, 
+              scale = "width", 
+              width = 0.8) +
+  scale_fill_manual(values = c("darkorchid", "darkorange",
+                               "dodgerblue", "firebrick")) +
+  labs(x = "Group/Condition Combinations", 
+       y = "Sensation Seeking Score") +
+  guides(fill = "none") +
+  coord_cartesian(ylim = c(0, 20))
+
+sss_plot
+```
+
+# Analysis
+
+## Correlation
+
+```{r analysis-corr}
+# conducting correlation analysis between state and trait anxiety for A/control
+analysis_data <- filter(processed_data, grp_condn == "A/control")
+corr <- cor.test(analysis_data$state_score, analysis_data$trait_score)
+
+# extracting correlation results
+esti = round(corr$estimate, 2)
+df = corr$parameter
+p = corr$p.value
+prob = ifelse(p < .001, "<", "=")
+p = ifelse(p < .001, .001, round(p, 3))
+ci = round(corr$conf.int, 2)
+direction = ifelse(esti < 0, "negatively", "positively")
+```
+
+Figure \@ref(fig:fig-corr) shows the correlation between state and trait anxiety scores for group A/ control condition combination. According to the Pearson's correlation test, state and trait anxiety were `r direction` correlated: $r_{`r df`}$ = `r esti`, p `r prob` `r p`, 95% CI = [`r ci`]. 
+
+```{r fig-corr, fig.cap = "The relationship between state and trait anxiety scores for Group A/ control condition."}
+# visualizing correlation using a scatterplot
+scatterplot_corr <- ggplot(analysis_data, 
+                           aes(state_score, trait_score)) + 
+  geom_point(color = "darkorchid") +
+  geom_smooth(method = "lm", se = TRUE, color = "black") +
+  labs(x = "State Anxiety Score", 
+       y = "Trait Anxiety Score") +
+  scale_x_continuous(limits = c(20, 80),
+                     breaks = seq(20, 80, by = 10)) +
+  scale_y_continuous(limits = c(20, 80),
+                     breaks = seq(20, 80, by = 10)) 
+scatterplot_corr
+```
+
+## Statistical Power
+
+```{r power-sim}
+# creating a function to simulate the correlation result
+sim_corr_test <- function(n = 100, r = 0,
+                          mu = c(0, 20), 
+                          sd = c(1, 5),
+                          alpha = 0.01) {
+  dat <- rnorm_multi(
+    n = n, 
+    r = r,
+    vars = 2,
+    varnames = c("x", "y")
+  )
+  
+  ctest = cor.test(dat$x, dat$y)
+  sig = ctest$p.value < alpha
+  
+  return(sig)
+}
+
+# number of observations in the A/control combination used for correlation analysis
+n_data <- nrow(analysis_data)
+
+# extracting means and sds for state and trait anxiety scores for A/control combination
+sim_data <- summary_data |>
+  filter(group == "A",
+         condition == "control")
+
+mu_state <- pull(sim_data, mean_state) |> round(2)
+mu_trait <- pull(sim_data, mean_trait) |> round(2)
+sdev_state <- pull(sim_data, sd_state) |> round(2)
+sdev_trait <- pull(sim_data, sd_trait) |> round(2)
+
+# assigning value to alpha for reproducibility
+alpha = 0.01
+
+# calculating power through iteration
+power <- replicate(1e4, sim_corr_test(n = n_data, r = esti,
+                                      mu = c(mu_state, mu_trait), 
+                                      sd = c(sdev_state, sdev_trait),
+                                      alpha = alpha)) |>
+  mean() 
+```
+
+The statistical power of the correlation test when alpha = `r alpha` is `r power`, which means that the probability of rejecting the null hypothesis (i.e. no correlation exists between state and trait anxiety scores) when it is false is 100%. In other words, the likelihood of successfully detecting a correlation between state and trait anxiety scores when it is actually present is 100%. 
+
+In the power simulation, the parameters used were:
+
+  (1) number of participants = `r n_data`, 
+  (2) correlation coefficient = `r esti` as the effect size, 
+  (3) alpha = `r alpha`, 
+  (4) means of variable x = `r mu_state` and variable y = `r mu_trait`, 
+  (5) standard deviations of variable x = `r sdev_state` and variable y = `r sdev_trait`.
+
+# References

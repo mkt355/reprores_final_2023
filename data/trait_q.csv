@@ -1,0 +1,21 @@
+q_id,question,reversed
+pleasant,I feel pleasant,TRUE
+nervous,I feel nervous and restless,FALSE
+satisfied,I feel satisfied with myself,TRUE
+happy_as_others,I wish I could be as happy as others seem to be,FALSE
+failure,I feel like a failure,FALSE
+rested,I feel rested,TRUE
+calm,"I am 'calm, cool, and collected'",TRUE
+difficulties,I feel that difficulties are piling up so that I cannot overcome them,FALSE
+worried,I worry too much over something that really doesn't matter,FALSE
+am_happy,I am happy,TRUE
+disturbed,I have disturbing thoughts,FALSE
+confident,I lack self-confidence,FALSE
+secure,I feel secure,TRUE
+decisive,I make decisions easily,TRUE
+inadequate,I feel inadequate,FALSE
+content,I am content,TRUE
+pre-occupied,Some unimportant thought runs through my mind and bothers me,FALSE
+disappointed,I take disappointments so keenly that I can't put them out of my mind,FALSE
+steady,I am a steady person,TRUE
+turmoil,I get in a state of tension or turmoil as I think about my recent concerns and interests,FALSE

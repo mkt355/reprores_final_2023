@@ -151,6 +151,7 @@ summary_table <- summary_data |>
 
 summary_table
 ```
+
 ## Score Distributions
 
 ```{r state-dist, fig.cap = "Distribution of state anxiety score for each group/ condition combination."}
@@ -251,6 +252,7 @@ scatterplot_corr
 
 ```{r power-sim}
 # creating a function to simulate the correlation result
+set.seed(321)
 sim_corr_test <- function(n = 100, r = 0,
                           mu = c(0, 20), 
                           sd = c(1, 5),
